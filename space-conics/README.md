@@ -1,31 +1,89 @@
-# Space Conics
+# Space Conics: videojuego con secciones cónicas y funciones trigonométricas
 
-Proyecto base para un juego tipo shooter espacial en Python con Pygame.
+Videojuego de naves desarrollado para el EID 1. La nave del jugador ataca con trayectorias definidas por rectas, parábolas y secciones cónicas, y los enemigos se mueven con funciones trigonométricas (movimiento sinusoidal).
 
-## Estructura
+## Integrantes
 
-- `main.py`: punto de entrada.
-- `settings.py`: configuración global del juego.
-- `game.py`: lógica principal del loop del juego.
-- `ui.py`: interfaz y HUD.
-- `player.py`: jugador.
-- `projectiles.py`: proyectiles.
-- `conics.py`: objetos conicos o enemigos visuales.
-- `enemies.py`: enemigos del juego.
-- `waves.py`: sistema de oleadas.
-- `boss.py`: jefe final.
+| Integrante | Rol | Archivos |
+|---|---|---|
+| Eduardo Dominguez | Base del proyecto, estructura, bucle principal e integración | `main.py`, `settings.py`, `game.py`, `ui.py`, `README.md` |
+| Alessandro Budini | Nave principal y sus 3 tipos de acciones | `player.py`, `projectiles.py`, `conics.py` |
+| Javier Poblete | Enemigos, oleadas y jefe | `enemies.py`, `waves.py`, `boss.py` |
 
-## Ejecutar
+## Responsabilidades
 
-```bash
-python main.py
-```
+### Eduardo Dominguez: base e integración
+- Crear la estructura de carpetas y el repositorio.
+- Definir las constantes globales en `settings.py` (tamaño de ventana, FPS, colores, velocidades, vidas).
+- Programar el bucle principal del juego, los estados (menú, jugando, victoria, derrota) y el reloj.
+- Implementar los límites de mapa para la nave, los proyectiles y los enemigos.
+- Gestionar las colisiones entre proyectiles y enemigos, y entre enemigos y nave.
+- Dibujar el HUD: vidas, puntaje, oleada actual y vida del jefe.
+- Integrar los módulos de Alessandro y Javier y revisar que el código final no tenga comentarios.
+
+### Alessandro Budini: nave principal
+- Clase `Player` con movimiento horizontal y vertical.
+- Acción 1: disparo en línea recta (ecuación de la recta).
+- Acción 2: disparo parabólico (ecuación de la parábola).
+- Acción 3: disparo con sección cónica (circunferencia, elipse o hipérbola) parametrizada con `math.sin` y `math.cos`.
+- Clases de proyectiles en `projectiles.py` y las ecuaciones en `conics.py`.
+
+### Javier Poblete: enemigos, oleadas y jefe
+- 3 tipos de enemigos con movimiento sinusoidal, sin colisión entre ellos.
+- Sistema de 3 oleadas con dificultad creciente en `waves.py`.
+- Jefe final con vida, patrón de movimiento y ataque propios en `boss.py`.
+- Aparición con `random` y eliminación de enemigos al salir del mapa.
 
 ## Requisitos
 
-- Python 3.10+
-- Pygame
+Librerías permitidas (únicas que se pueden usar):
 
-```bash
-pip install pygame
+- `pygame`
+- `random`
+- `math`
+
+Librerías prohibidas:
+
+- `numpy`
+- `scipy`
+- `sympy`
+
+## Instalación y ejecución
+
 ```
+pip install pygame
+python main.py
+```
+
+## Controles
+
+| Tecla | Acción |
+|---|---|
+| Flechas o WASD | Mover la nave |
+| Z | Disparo en línea recta |
+| X | Disparo parabólico |
+| C | Disparo con sección cónica |
+| ESC | Salir |
+
+## Estructura del proyecto
+
+```
+space-conics/
+├── main.py
+├── settings.py
+├── game.py
+├── ui.py
+├── player.py
+├── projectiles.py
+├── conics.py
+├── enemies.py
+├── waves.py
+├── boss.py
+└── README.md
+```
+
+## Reglas de entrega
+
+- Código sin comentarios.
+- Defensa en video explicando el código y las matemáticas aplicadas.
+- Juego funcionando.
