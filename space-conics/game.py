@@ -1,5 +1,9 @@
 import pygame
 
+from boss import Boss
+from enemies import Enemy
+from player import Player
+from projectiles import Projectile
 from settings import BACKGROUND_COLOR, FPS, HEIGHT, TITLE, WIDTH
 from ui import UI
 
@@ -20,6 +24,10 @@ class Game:
         self.state = self.MENU
         self.delta_time = 0.0
         self.elapsed_time = 0.0
+        self.player = Player(WIDTH // 2 - 20, HEIGHT - 70)
+        self.projectiles: list[Projectile] = []
+        self.enemies: list[Enemy] = []
+        self.boss: Boss | None = None
 
     def run(self) -> None:
         try:
@@ -49,6 +57,40 @@ class Game:
     def update(self) -> None:
         if self.state == self.PLAYING:
             self.elapsed_time += self.delta_time
+            self.player.update(pygame.key.get_pressed())
+            self.player.x = max(0, min(self.player.x, WIDTH - self.player.width))
+            self.player.y = max(0, min(self.player.y, HEIGHT - self.player.height))
+
+            for projectile in self.projectiles:
+                projectile.update()
+            self.projectiles = [
+                projectile
+                for projectile in self.projectiles
+                if not (
+                    projectile.x + projectile.radius < 0
+                    or projectile.x - projectile.radius > WIDTH
+                    or projectile.y + projectile.radius < 0
+                    or projectile.y - projectile.radius > HEIGHT
+                )
+            ]
+
+            for enemy in self.enemies:
+                enemy.update()
+            self.enemies = [
+                enemy
+                for enemy in self.enemies
+                if not (
+                    enemy.x + enemy.width < 0
+                    or enemy.x > WIDTH
+                    or enemy.y + enemy.height < 0
+                    or enemy.y > HEIGHT
+                )
+            ]
+
+            if self.boss is not None:
+                self.boss.update()
+                self.boss.x = max(0, min(self.boss.x, WIDTH - self.boss.width))
+                self.boss.y = max(0, min(self.boss.y, HEIGHT - self.boss.height))
 
     def start_game(self) -> None:
         self.elapsed_time = 0.0
@@ -62,6 +104,13 @@ class Game:
         if self.state == self.MENU:
             self.ui.draw_menu()
         elif self.state == self.PLAYING:
+            self.player.draw(self.screen)
+            for projectile in self.projectiles:
+                projectile.draw(self.screen)
+            for enemy in self.enemies:
+                enemy.draw(self.screen)
+            if self.boss is not None:
+                self.boss.draw(self.screen)
             self.ui.draw_playing(self.elapsed_time)
         else:
             self.ui.draw_result(self.state == self.VICTORY)
