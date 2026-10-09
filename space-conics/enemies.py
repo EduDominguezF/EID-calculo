@@ -1,17 +1,10 @@
-import pygame
+class Enemigo:
+    def __init__(self, posicion_x: int, posicion_y: int, vida: int = 1) -> None:
+        self.posicion_x = posicion_x
+        self.posicion_y = posicion_y
+        self.vida = vida
+        self.ancho = 30
+        self.alto = 30
 
-
-class Enemy:
-    def __init__(self, x: int, y: int, health: int = 1) -> None:
-        self.x = x
-        self.y = y
-        self.health = health
-        self.width = 30
-        self.height = 30
-
-    def update(self) -> None:
-        self.y += 1
-
-    def draw(self, screen: pygame.Surface) -> None:
-        rect = pygame.Rect(self.x, self.y, self.width, self.height)
-        pygame.draw.rect(screen, (255, 100, 100), rect)
+    def actualizar(self) -> None:
+        self.posicion_y += 1

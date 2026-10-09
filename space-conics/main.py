@@ -1,10 +1,10 @@
-from game import Game
+from game import Juego
 
 
-def main() -> None:
-    game = Game()
-    game.run()
+def iniciar_aplicacion() -> None:
+    juego = Juego()
+    juego.ejecutar()
 
 
 if __name__ == "__main__":
-    main()
+    iniciar_aplicacion()

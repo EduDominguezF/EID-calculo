@@ -1,17 +1,15 @@
-import pygame
+class Jefe:
+    def __init__(
+        self,
+        posicion_x: int,
+        posicion_y: int,
+        vida: int = 20,
+    ) -> None:
+        self.posicion_x = posicion_x
+        self.posicion_y = posicion_y
+        self.vida = vida
+        self.ancho = 120
+        self.alto = 80
 
-
-class Boss:
-    def __init__(self, x: int, y: int, health: int = 20) -> None:
-        self.x = x
-        self.y = y
-        self.health = health
-        self.width = 120
-        self.height = 80
-
-    def update(self) -> None:
-        self.x += 1
-
-    def draw(self, screen: pygame.Surface) -> None:
-        rect = pygame.Rect(self.x, self.y, self.width, self.height)
-        pygame.draw.rect(screen, (220, 50, 50), rect)
+    def actualizar(self) -> None:
+        self.posicion_x += 1

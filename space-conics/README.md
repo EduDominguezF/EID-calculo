@@ -22,7 +22,7 @@ Videojuego de naves desarrollado para el EID 1. La nave del jugador ataca con tr
 - Integrar los módulos de Alessandro y Javier y revisar que el código final no tenga comentarios.
 
 ### Alessandro Budini: nave principal
-- Clase `Player` con movimiento horizontal y vertical.
+- Clase `Jugador` con movimiento horizontal y vertical.
 - Acción 1: disparo en línea recta (ecuación de la recta).
 - Acción 2: disparo parabólico (ecuación de la parábola).
 - Acción 3: disparo con sección cónica (circunferencia, elipse o hipérbola) parametrizada con `math.sin` y `math.cos`.
@@ -81,6 +81,18 @@ space-conics/
 ├── boss.py
 └── README.md
 ```
+
+## Organización del código
+
+Se conserva la estructura de archivos actual con responsabilidades separadas:
+
+- `main.py` inicia la aplicación con `iniciar_aplicacion`.
+- `game.py` coordina el ciclo del juego, los estados, la entrada, las actualizaciones y las colisiones mediante `Juego`.
+- `ui.py` contiene la presentación y el dibujado mediante `Interfaz`; recibe entidades y no controla las reglas de la partida.
+- `settings.py` centraliza la configuración con nombres en español.
+- Los demás módulos contienen los datos y el comportamiento de `Jugador`, `Proyectil`, `Conica`, `Enemigo`, `Oleada`, `GestorOleadas` y `Jefe`, sin depender de Pygame para dibujarse.
+
+Los nombres propios del lenguaje y de Pygame, como `__init__`, `pygame.draw` y las constantes de teclas, conservan su forma original para respetar sus interfaces.
 
 ## Reglas de entrega
 

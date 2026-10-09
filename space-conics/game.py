@@ -1,156 +1,215 @@
 import pygame
 
-from boss import Boss
-from enemies import Enemy
-from player import Player
-from projectiles import Projectile
-from settings import BACKGROUND_COLOR, FPS, HEIGHT, TITLE, WIDTH
-from ui import UI
+from boss import Jefe
+from enemies import Enemigo
+from player import Jugador
+from projectiles import Proyectil
+from settings import (
+    ALTO_VENTANA,
+    ANCHO_VENTANA,
+    CUADROS_POR_SEGUNDO,
+    COLOR_FONDO,
+    TITULO,
+)
+from ui import Interfaz
+from waves import GestorOleadas
 
 
-class Game:
+class Juego:
     MENU = "menu"
-    PLAYING = "playing"
-    VICTORY = "victory"
-    DEFEAT = "defeat"
+    JUGANDO = "jugando"
+    VICTORIA = "victoria"
+    DERROTA = "derrota"
 
     def __init__(self) -> None:
         pygame.init()
-        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
-        pygame.display.set_caption(TITLE)
-        self.clock = pygame.time.Clock()
-        self.ui = UI(self.screen)
-        self.running = True
-        self.state = self.MENU
-        self.delta_time = 0.0
-        self.elapsed_time = 0.0
-        self.player = Player(WIDTH // 2 - 20, HEIGHT - 70)
-        self.projectiles: list[Projectile] = []
-        self.enemies: list[Enemy] = []
-        self.boss: Boss | None = None
-        self.score = 0
-        self.current_wave = 1
+        self.pantalla = pygame.display.set_mode((ANCHO_VENTANA, ALTO_VENTANA))
+        pygame.display.set_caption(TITULO)
+        self.reloj = pygame.time.Clock()
+        self.interfaz = Interfaz(self.pantalla)
+        self.en_ejecucion = True
+        self.estado = self.MENU
+        self.tiempo_transcurrido = 0.0
+        self.tiempo_delta = 0.0
+        self.jugador = Jugador(ANCHO_VENTANA // 2 - 20, ALTO_VENTANA - 70)
+        self.proyectiles: list[Proyectil] = []
+        self.enemigos: list[Enemigo] = []
+        self.jefe: Jefe | None = None
+        self.puntaje = 0
+        self.gestor_oleadas = GestorOleadas()
 
-    def run(self) -> None:
+    def ejecutar(self) -> None:
         try:
-            while self.running:
-                self.delta_time = self.clock.tick(FPS) / 1000
-                self.handle_events()
-                self.update()
-                self.draw()
+            while self.en_ejecucion:
+                self.tiempo_delta = self.reloj.tick(CUADROS_POR_SEGUNDO) / 1000
+                self.procesar_eventos()
+                self.actualizar()
+                self.dibujar()
         finally:
             pygame.quit()
 
-    def handle_events(self) -> None:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.running = False
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    self.running = False
-                elif self.state == self.MENU and event.key in (pygame.K_RETURN, pygame.K_SPACE):
-                    self.start_game()
-                elif self.state in (self.VICTORY, self.DEFEAT) and event.key in (
+    def procesar_eventos(self) -> None:
+        for evento in pygame.event.get():
+            if evento.type == pygame.QUIT:
+                self.en_ejecucion = False
+            elif evento.type == pygame.KEYDOWN:
+                if evento.key == pygame.K_ESCAPE:
+                    self.en_ejecucion = False
+                elif self.estado == self.MENU and evento.key in (
                     pygame.K_RETURN,
                     pygame.K_SPACE,
                 ):
-                    self.state = self.MENU
+                    self.iniciar_partida()
+                elif self.estado in (self.VICTORIA, self.DERROTA) and evento.key in (
+                    pygame.K_RETURN,
+                    pygame.K_SPACE,
+                ):
+                    self.estado = self.MENU
 
-    def update(self) -> None:
-        if self.state == self.PLAYING:
-            self.elapsed_time += self.delta_time
-            self.player.update(pygame.key.get_pressed())
-            self.player.x = max(0, min(self.player.x, WIDTH - self.player.width))
-            self.player.y = max(0, min(self.player.y, HEIGHT - self.player.height))
+    def actualizar(self) -> None:
+        if self.estado != self.JUGANDO:
+            return
 
-            for projectile in self.projectiles:
-                projectile.update()
-            self.projectiles = [
-                projectile
-                for projectile in self.projectiles
-                if not (
-                    projectile.x + projectile.radius < 0
-                    or projectile.x - projectile.radius > WIDTH
-                    or projectile.y + projectile.radius < 0
-                    or projectile.y - projectile.radius > HEIGHT
+        self.tiempo_transcurrido += self.tiempo_delta
+        self._actualizar_jugador()
+        self._actualizar_proyectiles()
+        self._actualizar_enemigos()
+        self.gestionar_colisiones()
+        self._actualizar_jefe()
+
+    def _actualizar_jugador(self) -> None:
+        teclas = pygame.key.get_pressed()
+        direccion_x = int(teclas[pygame.K_RIGHT] or teclas[pygame.K_d]) - int(
+            teclas[pygame.K_LEFT] or teclas[pygame.K_a]
+        )
+        direccion_y = int(teclas[pygame.K_DOWN] or teclas[pygame.K_s]) - int(
+            teclas[pygame.K_UP] or teclas[pygame.K_w]
+        )
+        self.jugador.moverse(direccion_x, direccion_y)
+        self.jugador.posicion_x = max(
+            0,
+            min(self.jugador.posicion_x, ANCHO_VENTANA - self.jugador.ancho),
+        )
+        self.jugador.posicion_y = max(
+            0,
+            min(self.jugador.posicion_y, ALTO_VENTANA - self.jugador.alto),
+        )
+
+    def _actualizar_proyectiles(self) -> None:
+        for proyectil in self.proyectiles:
+            proyectil.actualizar()
+        self.proyectiles = [
+            proyectil
+            for proyectil in self.proyectiles
+            if not (
+                proyectil.posicion_x + proyectil.radio < 0
+                or proyectil.posicion_x - proyectil.radio > ANCHO_VENTANA
+                or proyectil.posicion_y + proyectil.radio < 0
+                or proyectil.posicion_y - proyectil.radio > ALTO_VENTANA
+            )
+        ]
+
+    def _actualizar_enemigos(self) -> None:
+        for enemigo in self.enemigos:
+            enemigo.actualizar()
+        self.enemigos = [
+            enemigo
+            for enemigo in self.enemigos
+            if not (
+                enemigo.posicion_x + enemigo.ancho < 0
+                or enemigo.posicion_x > ANCHO_VENTANA
+                or enemigo.posicion_y + enemigo.alto < 0
+                or enemigo.posicion_y > ALTO_VENTANA
+            )
+        ]
+
+    def _actualizar_jefe(self) -> None:
+        if self.jefe is None:
+            return
+        self.jefe.actualizar()
+        self.jefe.posicion_x = max(
+            0,
+            min(self.jefe.posicion_x, ANCHO_VENTANA - self.jefe.ancho),
+        )
+        self.jefe.posicion_y = max(
+            0,
+            min(self.jefe.posicion_y, ALTO_VENTANA - self.jefe.alto),
+        )
+
+    def gestionar_colisiones(self) -> None:
+        proyectiles_restantes: list[Proyectil] = []
+        for proyectil in self.proyectiles:
+            impacto = False
+            for enemigo in self.enemigos:
+                punto_x = max(
+                    enemigo.posicion_x,
+                    min(proyectil.posicion_x, enemigo.posicion_x + enemigo.ancho),
                 )
-            ]
-
-            for enemy in self.enemies:
-                enemy.update()
-            self.enemies = [
-                enemy
-                for enemy in self.enemies
-                if not (
-                    enemy.x + enemy.width < 0
-                    or enemy.x > WIDTH
-                    or enemy.y + enemy.height < 0
-                    or enemy.y > HEIGHT
+                punto_y = max(
+                    enemigo.posicion_y,
+                    min(proyectil.posicion_y, enemigo.posicion_y + enemigo.alto),
                 )
-            ]
-            self.check_collisions()
-
-            if self.boss is not None:
-                self.boss.update()
-                self.boss.x = max(0, min(self.boss.x, WIDTH - self.boss.width))
-                self.boss.y = max(0, min(self.boss.y, HEIGHT - self.boss.height))
-
-    def check_collisions(self) -> None:
-        remaining_projectiles: list[Projectile] = []
-        for projectile in self.projectiles:
-            hit_enemy = False
-            for enemy in self.enemies:
-                closest_x = max(enemy.x, min(projectile.x, enemy.x + enemy.width))
-                closest_y = max(enemy.y, min(projectile.y, enemy.y + enemy.height))
-                distance_x = projectile.x - closest_x
-                distance_y = projectile.y - closest_y
-                if distance_x * distance_x + distance_y * distance_y <= projectile.radius * projectile.radius:
-                    enemy.health -= 1
-                    hit_enemy = True
+                distancia_x = proyectil.posicion_x - punto_x
+                distancia_y = proyectil.posicion_y - punto_y
+                if (
+                    distancia_x * distancia_x + distancia_y * distancia_y
+                    <= proyectil.radio * proyectil.radio
+                ):
+                    enemigo.vida -= 1
+                    impacto = True
                     break
-            if not hit_enemy:
-                remaining_projectiles.append(projectile)
+            if not impacto:
+                proyectiles_restantes.append(proyectil)
 
-        self.projectiles = remaining_projectiles
-        surviving_enemies = [enemy for enemy in self.enemies if enemy.health > 0]
-        self.score += len(self.enemies) - len(surviving_enemies)
-        self.enemies = surviving_enemies
+        self.proyectiles = proyectiles_restantes
+        enemigos_restantes = [enemigo for enemigo in self.enemigos if enemigo.vida > 0]
+        self.puntaje += len(self.enemigos) - len(enemigos_restantes)
+        self.enemigos = enemigos_restantes
 
-        player_rect = pygame.Rect(self.player.x, self.player.y, self.player.width, self.player.height)
-        remaining_enemies: list[Enemy] = []
-        for enemy in self.enemies:
-            enemy_rect = pygame.Rect(enemy.x, enemy.y, enemy.width, enemy.height)
-            if player_rect.colliderect(enemy_rect):
-                self.player.lives -= 1
+        rect_jugador = pygame.Rect(
+            self.jugador.posicion_x,
+            self.jugador.posicion_y,
+            self.jugador.ancho,
+            self.jugador.alto,
+        )
+        enemigos_restantes = []
+        for enemigo in self.enemigos:
+            rect_enemigo = pygame.Rect(
+                enemigo.posicion_x,
+                enemigo.posicion_y,
+                enemigo.ancho,
+                enemigo.alto,
+            )
+            if rect_jugador.colliderect(rect_enemigo):
+                self.jugador.vidas -= 1
             else:
-                remaining_enemies.append(enemy)
+                enemigos_restantes.append(enemigo)
 
-        self.enemies = remaining_enemies
-        if self.player.lives <= 0:
-            self.finish_game(False)
+        self.enemigos = enemigos_restantes
+        if self.jugador.vidas <= 0:
+            self.finalizar_partida(False)
 
-    def start_game(self) -> None:
-        self.elapsed_time = 0.0
-        self.state = self.PLAYING
+    def iniciar_partida(self) -> None:
+        self.tiempo_transcurrido = 0.0
+        self.estado = self.JUGANDO
 
-    def finish_game(self, won: bool) -> None:
-        self.state = self.VICTORY if won else self.DEFEAT
+    def finalizar_partida(self, victoria: bool) -> None:
+        self.estado = self.VICTORIA if victoria else self.DERROTA
 
-    def draw(self) -> None:
-        self.screen.fill(BACKGROUND_COLOR)
-        if self.state == self.MENU:
-            self.ui.draw_menu()
-        elif self.state == self.PLAYING:
-            self.player.draw(self.screen)
-            for projectile in self.projectiles:
-                projectile.draw(self.screen)
-            for enemy in self.enemies:
-                enemy.draw(self.screen)
-            if self.boss is not None:
-                self.boss.draw(self.screen)
-            self.ui.draw_playing(self.elapsed_time)
-            boss_health = self.boss.health if self.boss is not None else None
-            self.ui.draw_hud(self.score, self.player.lives, self.current_wave, boss_health)
+    def dibujar(self) -> None:
+        self.pantalla.fill(COLOR_FONDO)
+        if self.estado == self.MENU:
+            self.interfaz.dibujar_menu()
+        elif self.estado == self.JUGANDO:
+            self.interfaz.dibujar_partida(
+                self.jugador,
+                self.proyectiles,
+                self.enemigos,
+                self.jefe,
+                self.tiempo_transcurrido,
+                self.puntaje,
+                self.gestor_oleadas.oleada_actual,
+            )
         else:
-            self.ui.draw_result(self.state == self.VICTORY)
+            self.interfaz.dibujar_resultado(self.estado == self.VICTORIA)
         pygame.display.flip()

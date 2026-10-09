@@ -1,60 +1,140 @@
 import pygame
 
+from boss import Jefe
+from enemies import Enemigo
+from player import Jugador
+from projectiles import Proyectil
+from settings import COLOR_ENEMIGO, COLOR_JUGADOR, FUENTE
 
-class UI:
-    def __init__(self, screen: pygame.Surface) -> None:
-        self.screen = screen
-        self.title_font = pygame.font.SysFont("arial", 48)
-        self.message_font = pygame.font.SysFont("arial", 26)
-        self.small_font = pygame.font.SysFont("arial", 20)
 
-    def draw_centered_text(
+class Interfaz:
+    def __init__(self, pantalla: pygame.Surface) -> None:
+        self.pantalla = pantalla
+        self.fuente_titulo = pygame.font.SysFont(FUENTE, 48)
+        self.fuente_mensaje = pygame.font.SysFont(FUENTE, 26)
+        self.fuente_pequena = pygame.font.SysFont(FUENTE, 20)
+
+    def dibujar_texto_centrado(
         self,
-        text: str,
-        font: pygame.font.Font,
+        texto: str,
+        fuente: pygame.font.Font,
         color: tuple[int, int, int],
-        y: int,
+        posicion_y: int,
     ) -> None:
-        rendered_text = font.render(text, True, color)
-        text_rect = rendered_text.get_rect(center=(self.screen.get_width() // 2, y))
-        self.screen.blit(rendered_text, text_rect)
+        texto_renderizado = fuente.render(texto, True, color)
+        rect_texto = texto_renderizado.get_rect(
+            center=(self.pantalla.get_width() // 2, posicion_y)
+        )
+        self.pantalla.blit(texto_renderizado, rect_texto)
 
-    def draw_menu(self) -> None:
-        self.draw_centered_text("SPACE CONICS", self.title_font, (100, 200, 255), 190)
-        self.draw_centered_text("Presiona ENTER o ESPACIO para comenzar", self.message_font, (255, 255, 255), 280)
-        self.draw_centered_text("ESC para salir", self.small_font, (180, 180, 180), 325)
+    def dibujar_menu(self) -> None:
+        self.dibujar_texto_centrado(
+            "SPACE CONICS",
+            self.fuente_titulo,
+            (100, 200, 255),
+            190,
+        )
+        self.dibujar_texto_centrado(
+            "Presiona ENTER o ESPACIO para comenzar",
+            self.fuente_mensaje,
+            (255, 255, 255),
+            280,
+        )
+        self.dibujar_texto_centrado(
+            "ESC para salir",
+            self.fuente_pequena,
+            (180, 180, 180),
+            325,
+        )
 
-    def draw_playing(self, elapsed_time: float) -> None:
-        self.draw_centered_text("Partida en curso", self.title_font, (255, 255, 255), 230)
-        self.draw_centered_text(f"Tiempo: {elapsed_time:.1f} s", self.message_font, (180, 180, 180), 285)
-
-    def draw_hud(
+    def dibujar_partida(
         self,
-        score: int,
-        lives: int,
-        wave: int,
-        boss_health: int | None = None,
+        jugador: Jugador,
+        proyectiles: list[Proyectil],
+        enemigos: list[Enemigo],
+        jefe: Jefe | None,
+        tiempo_transcurrido: float,
+        puntaje: int,
+        oleada: int,
     ) -> None:
-        score_text = self.small_font.render(f"Puntaje: {score}", True, (255, 255, 255))
-        lives_text = self.small_font.render(f"Vidas: {lives}", True, (255, 255, 255))
-        wave_text = self.small_font.render(f"Oleada: {wave}", True, (255, 255, 255))
+        pygame.draw.rect(
+            self.pantalla,
+            COLOR_JUGADOR,
+            (jugador.posicion_x, jugador.posicion_y, jugador.ancho, jugador.alto),
+        )
+        for proyectil in proyectiles:
+            pygame.draw.circle(
+                self.pantalla,
+                proyectil.color,
+                (proyectil.posicion_x, proyectil.posicion_y),
+                proyectil.radio,
+            )
+        for enemigo in enemigos:
+            pygame.draw.rect(
+                self.pantalla,
+                COLOR_ENEMIGO,
+                (enemigo.posicion_x, enemigo.posicion_y, enemigo.ancho, enemigo.alto),
+            )
+        if jefe is not None:
+            pygame.draw.rect(
+                self.pantalla,
+                (220, 50, 50),
+                (jefe.posicion_x, jefe.posicion_y, jefe.ancho, jefe.alto),
+            )
 
-        self.screen.blit(score_text, (20, 20))
-        self.screen.blit(lives_text, (20, 45))
-        self.screen.blit(wave_text, (20, 70))
+        self.dibujar_texto_centrado(
+            f"Tiempo: {tiempo_transcurrido:.1f} s",
+            self.fuente_mensaje,
+            (180, 180, 180),
+            285,
+        )
+        self.dibujar_hud(puntaje, jugador.vidas, oleada, jefe.vida if jefe else None)
 
-        if boss_health is not None:
-            boss_text = self.small_font.render(
-                f"Vida del jefe: {max(0, boss_health)}",
+    def dibujar_hud(
+        self,
+        puntaje: int,
+        vidas: int,
+        oleada: int,
+        vida_jefe: int | None = None,
+    ) -> None:
+        textos = (
+            f"Puntaje: {puntaje}",
+            f"Vidas: {vidas}",
+            f"Oleada: {oleada}",
+        )
+        for indice, texto in enumerate(textos):
+            texto_renderizado = self.fuente_pequena.render(texto, True, (255, 255, 255))
+            self.pantalla.blit(texto_renderizado, (20, 20 + indice * 25))
+
+        if vida_jefe is not None:
+            texto_jefe = self.fuente_pequena.render(
+                f"Vida del jefe: {max(0, vida_jefe)}",
                 True,
                 (255, 150, 150),
             )
-            boss_rect = boss_text.get_rect(center=(self.screen.get_width() // 2, 30))
-            self.screen.blit(boss_text, boss_rect)
+            rect_jefe = texto_jefe.get_rect(
+                center=(self.pantalla.get_width() // 2, 30)
+            )
+            self.pantalla.blit(texto_jefe, rect_jefe)
 
-    def draw_result(self, won: bool) -> None:
-        title = "VICTORIA" if won else "DERROTA"
-        color = (100, 255, 140) if won else (255, 100, 100)
-        self.draw_centered_text(title, self.title_font, color, 220)
-        self.draw_centered_text("ENTER o ESPACIO para volver al menu", self.message_font, (255, 255, 255), 285)
-        self.draw_centered_text("ESC para salir", self.small_font, (180, 180, 180), 325)
+    def dibujar_resultado(self, victoria: bool) -> None:
+        texto_titulo = "VICTORIA" if victoria else "DERROTA"
+        color_titulo = (100, 255, 140) if victoria else (255, 100, 100)
+        self.dibujar_texto_centrado(
+            texto_titulo,
+            self.fuente_titulo,
+            color_titulo,
+            220,
+        )
+        self.dibujar_texto_centrado(
+            "ENTER o ESPACIO para volver al menu",
+            self.fuente_mensaje,
+            (255, 255, 255),
+            285,
+        )
+        self.dibujar_texto_centrado(
+            "ESC para salir",
+            self.fuente_pequena,
+            (180, 180, 180),
+            325,
+        )

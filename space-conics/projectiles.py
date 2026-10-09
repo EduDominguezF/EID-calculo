@@ -1,16 +1,17 @@
-import pygame
-
-
-class Projectile:
-    def __init__(self, x: int, y: int, speed: int, radius: int = 5, color: tuple[int, int, int] = (255, 220, 100)) -> None:
-        self.x = x
-        self.y = y
-        self.speed = speed
-        self.radius = radius
+class Proyectil:
+    def __init__(
+        self,
+        posicion_x: int,
+        posicion_y: int,
+        velocidad: int,
+        radio: int = 5,
+        color: tuple[int, int, int] = (255, 220, 100),
+    ) -> None:
+        self.posicion_x = posicion_x
+        self.posicion_y = posicion_y
+        self.velocidad = velocidad
+        self.radio = radio
         self.color = color
 
-    def update(self) -> None:
-        self.y -= self.speed
-
-    def draw(self, screen: pygame.Surface) -> None:
-        pygame.draw.circle(screen, self.color, (self.x, self.y), self.radius)
+    def actualizar(self) -> None:
+        self.posicion_y -= self.velocidad
