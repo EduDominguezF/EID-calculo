@@ -86,11 +86,44 @@ class Game:
                     or enemy.y > HEIGHT
                 )
             ]
+            self.check_collisions()
 
             if self.boss is not None:
                 self.boss.update()
                 self.boss.x = max(0, min(self.boss.x, WIDTH - self.boss.width))
                 self.boss.y = max(0, min(self.boss.y, HEIGHT - self.boss.height))
+
+    def check_collisions(self) -> None:
+        remaining_projectiles: list[Projectile] = []
+        for projectile in self.projectiles:
+            hit_enemy = False
+            for enemy in self.enemies:
+                closest_x = max(enemy.x, min(projectile.x, enemy.x + enemy.width))
+                closest_y = max(enemy.y, min(projectile.y, enemy.y + enemy.height))
+                distance_x = projectile.x - closest_x
+                distance_y = projectile.y - closest_y
+                if distance_x * distance_x + distance_y * distance_y <= projectile.radius * projectile.radius:
+                    enemy.health -= 1
+                    hit_enemy = True
+                    break
+            if not hit_enemy:
+                remaining_projectiles.append(projectile)
+
+        self.projectiles = remaining_projectiles
+        self.enemies = [enemy for enemy in self.enemies if enemy.health > 0]
+
+        player_rect = pygame.Rect(self.player.x, self.player.y, self.player.width, self.player.height)
+        remaining_enemies: list[Enemy] = []
+        for enemy in self.enemies:
+            enemy_rect = pygame.Rect(enemy.x, enemy.y, enemy.width, enemy.height)
+            if player_rect.colliderect(enemy_rect):
+                self.player.lives -= 1
+            else:
+                remaining_enemies.append(enemy)
+
+        self.enemies = remaining_enemies
+        if self.player.lives <= 0:
+            self.finish_game(False)
 
     def start_game(self) -> None:
         self.elapsed_time = 0.0
