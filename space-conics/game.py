@@ -28,6 +28,8 @@ class Game:
         self.projectiles: list[Projectile] = []
         self.enemies: list[Enemy] = []
         self.boss: Boss | None = None
+        self.score = 0
+        self.current_wave = 1
 
     def run(self) -> None:
         try:
@@ -110,7 +112,9 @@ class Game:
                 remaining_projectiles.append(projectile)
 
         self.projectiles = remaining_projectiles
-        self.enemies = [enemy for enemy in self.enemies if enemy.health > 0]
+        surviving_enemies = [enemy for enemy in self.enemies if enemy.health > 0]
+        self.score += len(self.enemies) - len(surviving_enemies)
+        self.enemies = surviving_enemies
 
         player_rect = pygame.Rect(self.player.x, self.player.y, self.player.width, self.player.height)
         remaining_enemies: list[Enemy] = []
@@ -145,6 +149,8 @@ class Game:
             if self.boss is not None:
                 self.boss.draw(self.screen)
             self.ui.draw_playing(self.elapsed_time)
+            boss_health = self.boss.health if self.boss is not None else None
+            self.ui.draw_hud(self.score, self.player.lives, self.current_wave, boss_health)
         else:
             self.ui.draw_result(self.state == self.VICTORY)
         pygame.display.flip()
