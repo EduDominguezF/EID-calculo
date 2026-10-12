@@ -75,10 +75,9 @@ class Interfaz:
                 (enemigo.posicion_x, enemigo.posicion_y)
             )
         if jefe is not None:
-            pygame.draw.rect(
-                self.pantalla,
-                (220, 50, 50),
-                (jefe.posicion_x, jefe.posicion_y, jefe.ancho, jefe.alto),
+            self.pantalla.blit(
+                jefe.imagen,
+                (jefe.posicion_x, jefe.posicion_y)
             )
 
         self.dibujar_texto_centrado(
