@@ -75,6 +75,12 @@ class Juego:
         self._actualizar_proyectiles()
         self._actualizar_enemigos()
         self.gestionar_colisiones()
+        if not self.enemigos and self.jefe is None:
+            if self.gestor_oleadas.hay_mas_oleadas():
+                self.gestor_oleadas.avanzar_oleada()
+                self.enemigos = self.gestor_oleadas.generar_enemigos()
+            else:
+                self.jefe = Jefe(420, 40)
         self._actualizar_jefe()
 
     def _actualizar_jugador(self) -> None:
@@ -111,7 +117,7 @@ class Juego:
 
     def _actualizar_enemigos(self) -> None:
         for enemigo in self.enemigos:
-            enemigo.actualizar()
+            enemigo.actualizar(self.tiempo_delta)
         self.enemigos = [
             enemigo
             for enemigo in self.enemigos
@@ -191,6 +197,12 @@ class Juego:
 
     def iniciar_partida(self) -> None:
         self.tiempo_transcurrido = 0.0
+        self.jugador = Jugador(ANCHO_VENTANA // 2 - 20, ALTO_VENTANA - 70)
+        self.proyectiles = []
+        self.jefe = None
+        self.puntaje = 0
+        self.gestor_oleadas = GestorOleadas()
+        self.enemigos = [Enemigo(200, 50, 1), Enemigo(480, 50, 2), Enemigo(760, 50, 3)]
         self.estado = self.JUGANDO
 
     def finalizar_partida(self, victoria: bool) -> None:

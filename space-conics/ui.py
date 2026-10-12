@@ -70,10 +70,9 @@ class Interfaz:
                 proyectil.radio,
             )
         for enemigo in enemigos:
-            pygame.draw.rect(
-                self.pantalla,
-                COLOR_ENEMIGO,
-                (enemigo.posicion_x, enemigo.posicion_y, enemigo.ancho, enemigo.alto),
+            self.pantalla.blit(
+                enemigo.imagen,
+                (enemigo.posicion_x, enemigo.posicion_y)
             )
         if jefe is not None:
             pygame.draw.rect(
