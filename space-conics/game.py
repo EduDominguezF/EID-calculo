@@ -33,6 +33,7 @@ class Juego:
         self.tiempo_delta = 0.0
         self.jugador = Jugador(ANCHO_VENTANA // 2 - 20, ALTO_VENTANA - 70)
         self.proyectiles: list[Proyectil] = []
+        self.proyectiles_enemigos: list[Proyectil] = []
         self.enemigos: list[Enemigo] = []
         self.jefe: Jefe | None = None
         self.puntaje = 0
@@ -115,6 +116,19 @@ class Juego:
             )
         ]
 
+        for proyectil in self.proyectiles_enemigos:
+            proyectil.actualizar()
+        self.proyectiles_enemigos = [
+            proyectil
+            for proyectil in self.proyectiles_enemigos
+            if not (
+                proyectil.posicion_x + proyectil.radio < 0
+                or proyectil.posicion_x - proyectil.radio > ANCHO_VENTANA
+                or proyectil.posicion_y + proyectil.radio < 0
+                or proyectil.posicion_y - proyectil.radio > ALTO_VENTANA
+            )
+        ]
+
     def _actualizar_enemigos(self) -> None:
         for enemigo in self.enemigos:
             enemigo.actualizar(self.tiempo_delta)
@@ -132,7 +146,10 @@ class Juego:
     def _actualizar_jefe(self) -> None:
         if self.jefe is None:
             return
-        self.jefe.actualizar()
+        nuevo_proyectil = self.jefe.actualizar(self.tiempo_delta)
+        if nuevo_proyectil:
+            self.proyectiles_enemigos.append(nuevo_proyectil)
+        
         self.jefe.posicion_x = max(
             0,
             min(self.jefe.posicion_x, ANCHO_VENTANA - self.jefe.ancho),
@@ -143,6 +160,7 @@ class Juego:
         )
 
     def gestionar_colisiones(self) -> None:
+        # 1. Colisiones de proyectiles del jugador con enemigos comunes
         proyectiles_restantes: list[Proyectil] = []
         for proyectil in self.proyectiles:
             impacto = False
@@ -166,20 +184,52 @@ class Juego:
                     break
             if not impacto:
                 proyectiles_restantes.append(proyectil)
-
+        
         self.proyectiles = proyectiles_restantes
-        enemigos_restantes = [enemigo for enemigo in self.enemigos if enemigo.vida > 0]
-        self.puntaje += len(self.enemigos) - len(enemigos_restantes)
-        self.enemigos = enemigos_restantes
 
+        # 2. Colisiones de proyectiles del jugador con el jefe
+        if self.jefe is not None:
+            rect_jefe = pygame.Rect(self.jefe.posicion_x, self.jefe.posicion_y, self.jefe.ancho, self.jefe.alto)
+            proyectiles_restantes_jefe = []
+            
+            for proyectil in self.proyectiles:
+                rect_proyectil = pygame.Rect(proyectil.posicion_x - proyectil.radio, proyectil.posicion_y - proyectil.radio, proyectil.radio*2, proyectil.radio*2)
+                if rect_jefe.colliderect(rect_proyectil):
+                    self.jefe.vida -= 1
+                else:
+                    proyectiles_restantes_jefe.append(proyectil)
+            
+            self.proyectiles = proyectiles_restantes_jefe
+            
+            if self.jefe.vida <= 0:
+                self.finalizar_partida(True)
+
+        # 3. Definir rectángulo del jugador para las siguientes colisiones
         rect_jugador = pygame.Rect(
             self.jugador.posicion_x,
             self.jugador.posicion_y,
             self.jugador.ancho,
             self.jugador.alto,
         )
+
+        # 4. Colisiones de proyectiles enemigos con el jugador
+        proyectiles_enemigos_restantes = []
+        for proyectil in self.proyectiles_enemigos:
+            rect_proyectil = pygame.Rect(proyectil.posicion_x - proyectil.radio, proyectil.posicion_y - proyectil.radio, proyectil.radio*2, proyectil.radio*2)
+            if rect_jugador.colliderect(rect_proyectil):
+                self.jugador.vidas -= 1
+            else:
+                proyectiles_enemigos_restantes.append(proyectil)
+        self.proyectiles_enemigos = proyectiles_enemigos_restantes
+
+        # 5. Colisiones de enemigos (cuerpo a cuerpo) con el jugador y eliminación de enemigos muertos
         enemigos_restantes = []
+        enemigos_muertos_ahora = 0
         for enemigo in self.enemigos:
+            if enemigo.vida <= 0:
+                enemigos_muertos_ahora += 1
+                continue
+                
             rect_enemigo = pygame.Rect(
                 enemigo.posicion_x,
                 enemigo.posicion_y,
@@ -191,7 +241,10 @@ class Juego:
             else:
                 enemigos_restantes.append(enemigo)
 
+        self.puntaje += enemigos_muertos_ahora
         self.enemigos = enemigos_restantes
+
+        # 6. Comprobar si el jugador ha muerto
         if self.jugador.vidas <= 0:
             self.finalizar_partida(False)
 
@@ -199,6 +252,7 @@ class Juego:
         self.tiempo_transcurrido = 0.0
         self.jugador = Jugador(ANCHO_VENTANA // 2 - 20, ALTO_VENTANA - 70)
         self.proyectiles = []
+        self.proyectiles_enemigos = []
         self.jefe = None
         self.puntaje = 0
         self.gestor_oleadas = GestorOleadas()
@@ -215,7 +269,7 @@ class Juego:
         elif self.estado == self.JUGANDO:
             self.interfaz.dibujar_partida(
                 self.jugador,
-                self.proyectiles,
+                self.proyectiles + self.proyectiles_enemigos,
                 self.enemigos,
                 self.jefe,
                 self.tiempo_transcurrido,
