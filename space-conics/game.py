@@ -8,11 +8,50 @@ from settings import (
     ALTO_VENTANA,
     ANCHO_VENTANA,
     CUADROS_POR_SEGUNDO,
-    COLOR_FONDO,
+    DANIO_A_JUGADOR,
     TITULO,
 )
 from ui import Interfaz
 from waves import GestorOleadas
+
+PUNTOS_POR_TIPO = {1: 10, 2: 20, 3: 30, "jefe": 200}
+
+
+def colision_rectangulos(
+    ax: float, ay: float, aw: float, ah: float,
+    bx: float, by: float, bw: float, bh: float,
+) -> bool:
+    return ax < bx + bw and bx < ax + aw and ay < by + bh and by < ay + ah
+
+
+def colision_circulo_rectangulo(
+    cx: float, cy: float, radio: float,
+    rx: float, ry: float, rw: float, rh: float,
+) -> bool:
+    punto_x = max(rx, min(cx, rx + rw))
+    punto_y = max(ry, min(cy, ry + rh))
+    distancia_x = cx - punto_x
+    distancia_y = cy - punto_y
+    return distancia_x * distancia_x + distancia_y * distancia_y <= radio * radio
+
+
+def proyectil_toca(proyectil: Proyectil, entidad: Enemigo | Jugador) -> bool:
+    return colision_circulo_rectangulo(
+        proyectil.posicion_x,
+        proyectil.posicion_y,
+        proyectil.radio,
+        entidad.posicion_x,
+        entidad.posicion_y,
+        entidad.ancho,
+        entidad.alto,
+    )
+
+
+def entidades_se_tocan(a: Enemigo | Jugador, b: Enemigo | Jugador) -> bool:
+    return colision_rectangulos(
+        a.posicion_x, a.posicion_y, a.ancho, a.alto,
+        b.posicion_x, b.posicion_y, b.ancho, b.alto,
+    )
 
 
 class Juego:
@@ -75,23 +114,23 @@ class Juego:
         self._actualizar_jugador()
         self._actualizar_proyectiles()
         self._actualizar_enemigos()
+        self._actualizar_jefe()
+        self.evitar_choques_entre_enemigos()
         self.gestionar_colisiones()
+        if self.estado != self.JUGANDO:
+            return
         if not self.enemigos and self.jefe is None:
             if self.gestor_oleadas.hay_mas_oleadas():
                 self.gestor_oleadas.avanzar_oleada()
                 self.enemigos = self.gestor_oleadas.generar_enemigos()
             else:
-                self.jefe = Jefe(420, 40)
-        self._actualizar_jefe()
+                self.jefe = Jefe(ANCHO_VENTANA / 2 - 97)
+                self.enemigos = self.gestor_oleadas.generar_escolta_jefe()
 
     def _actualizar_jugador(self) -> None:
         teclas = pygame.key.get_pressed()
-        direccion_x = int(teclas[pygame.K_RIGHT] or teclas[pygame.K_d]) - int(
-            teclas[pygame.K_LEFT] or teclas[pygame.K_a]
-        )
-        direccion_y = int(teclas[pygame.K_DOWN] or teclas[pygame.K_s]) - int(
-            teclas[pygame.K_UP] or teclas[pygame.K_w]
-        )
+        direccion_x = int(teclas[pygame.K_RIGHT]) - int(teclas[pygame.K_LEFT])
+        direccion_y = int(teclas[pygame.K_DOWN]) - int(teclas[pygame.K_UP])
         self.jugador.moverse(direccion_x, direccion_y)
         self.jugador.posicion_x = max(
             0,
@@ -102,150 +141,98 @@ class Juego:
             min(self.jugador.posicion_y, ALTO_VENTANA - self.jugador.alto),
         )
 
+        self.jugador.actualizar_tiempos(self.tiempo_delta)
+        disparos = []
+        if teclas[pygame.K_z]:
+            disparos.append(self.jugador.disparar_basica())
+        if teclas[pygame.K_x]:
+            disparos.append(self.jugador.disparar_parabolica())
+        if teclas[pygame.K_c]:
+            disparos.append(self.jugador.disparar_conica())
+        self.proyectiles += [disparo for disparo in disparos if disparo is not None]
+
     def _actualizar_proyectiles(self) -> None:
-        for proyectil in self.proyectiles:
-            proyectil.actualizar()
+        for proyectil in self.proyectiles + self.proyectiles_enemigos:
+            proyectil.actualizar(self.tiempo_delta)
         self.proyectiles = [
             proyectil
             for proyectil in self.proyectiles
-            if not (
-                proyectil.posicion_x + proyectil.radio < 0
-                or proyectil.posicion_x - proyectil.radio > ANCHO_VENTANA
-                or proyectil.posicion_y + proyectil.radio < 0
-                or proyectil.posicion_y - proyectil.radio > ALTO_VENTANA
-            )
+            if not proyectil.terminado(ANCHO_VENTANA, ALTO_VENTANA)
         ]
-
-        for proyectil in self.proyectiles_enemigos:
-            proyectil.actualizar()
         self.proyectiles_enemigos = [
             proyectil
             for proyectil in self.proyectiles_enemigos
-            if not (
-                proyectil.posicion_x + proyectil.radio < 0
-                or proyectil.posicion_x - proyectil.radio > ANCHO_VENTANA
-                or proyectil.posicion_y + proyectil.radio < 0
-                or proyectil.posicion_y - proyectil.radio > ALTO_VENTANA
-            )
+            if not proyectil.terminado(ANCHO_VENTANA, ALTO_VENTANA)
         ]
 
     def _actualizar_enemigos(self) -> None:
         for enemigo in self.enemigos:
             enemigo.actualizar(self.tiempo_delta)
-        self.enemigos = [
-            enemigo
-            for enemigo in self.enemigos
-            if not (
-                enemigo.posicion_x + enemigo.ancho < 0
-                or enemigo.posicion_x > ANCHO_VENTANA
-                or enemigo.posicion_y + enemigo.alto < 0
-                or enemigo.posicion_y > ALTO_VENTANA
-            )
-        ]
 
     def _actualizar_jefe(self) -> None:
         if self.jefe is None:
             return
         nuevo_proyectil = self.jefe.actualizar(self.tiempo_delta)
-        if nuevo_proyectil:
+        if nuevo_proyectil is not None:
             self.proyectiles_enemigos.append(nuevo_proyectil)
-        
-        self.jefe.posicion_x = max(
-            0,
-            min(self.jefe.posicion_x, ANCHO_VENTANA - self.jefe.ancho),
-        )
-        self.jefe.posicion_y = max(
-            0,
-            min(self.jefe.posicion_y, ALTO_VENTANA - self.jefe.alto),
-        )
+
+    def todos_los_enemigos(self) -> list[Enemigo]:
+        if self.jefe is None:
+            return self.enemigos
+        return self.enemigos + [self.jefe]
+
+    def evitar_choques_entre_enemigos(self) -> None:
+        activos = [e for e in self.todos_los_enemigos() if not e.entrando]
+        for i in range(len(activos)):
+            for j in range(i + 1, len(activos)):
+                a = activos[i]
+                b = activos[j]
+                if not entidades_se_tocan(a, b):
+                    continue
+                velocidad_relativa = a.direccion * a.velocidad - b.direccion * b.velocidad
+                if (a.posicion_x - b.posicion_x) * velocidad_relativa < 0:
+                    a.direccion *= -1
+                    b.direccion *= -1
 
     def gestionar_colisiones(self) -> None:
-        # 1. Colisiones de proyectiles del jugador con enemigos comunes
         proyectiles_restantes: list[Proyectil] = []
         for proyectil in self.proyectiles:
             impacto = False
-            for enemigo in self.enemigos:
-                punto_x = max(
-                    enemigo.posicion_x,
-                    min(proyectil.posicion_x, enemigo.posicion_x + enemigo.ancho),
-                )
-                punto_y = max(
-                    enemigo.posicion_y,
-                    min(proyectil.posicion_y, enemigo.posicion_y + enemigo.alto),
-                )
-                distancia_x = proyectil.posicion_x - punto_x
-                distancia_y = proyectil.posicion_y - punto_y
-                if (
-                    distancia_x * distancia_x + distancia_y * distancia_y
-                    <= proyectil.radio * proyectil.radio
-                ):
-                    enemigo.vida -= 1
+            for enemigo in self.todos_los_enemigos():
+                if proyectil_toca(proyectil, enemigo):
+                    enemigo.vida -= proyectil.danio
                     impacto = True
                     break
             if not impacto:
                 proyectiles_restantes.append(proyectil)
-        
         self.proyectiles = proyectiles_restantes
 
-        # 2. Colisiones de proyectiles del jugador con el jefe
-        if self.jefe is not None:
-            rect_jefe = pygame.Rect(self.jefe.posicion_x, self.jefe.posicion_y, self.jefe.ancho, self.jefe.alto)
-            proyectiles_restantes_jefe = []
-            
-            for proyectil in self.proyectiles:
-                rect_proyectil = pygame.Rect(proyectil.posicion_x - proyectil.radio, proyectil.posicion_y - proyectil.radio, proyectil.radio*2, proyectil.radio*2)
-                if rect_jefe.colliderect(rect_proyectil):
-                    self.jefe.vida -= 1
-                else:
-                    proyectiles_restantes_jefe.append(proyectil)
-            
-            self.proyectiles = proyectiles_restantes_jefe
-            
-            if self.jefe.vida <= 0:
-                self.finalizar_partida(True)
+        enemigos_vivos = []
+        for enemigo in self.enemigos:
+            if enemigo.vida <= 0:
+                self.puntaje += PUNTOS_POR_TIPO[enemigo.tipo]
+            else:
+                enemigos_vivos.append(enemigo)
+        self.enemigos = enemigos_vivos
 
-        # 3. Definir rectángulo del jugador para las siguientes colisiones
-        rect_jugador = pygame.Rect(
-            self.jugador.posicion_x,
-            self.jugador.posicion_y,
-            self.jugador.ancho,
-            self.jugador.alto,
-        )
+        if self.jefe is not None and self.jefe.vida <= 0:
+            self.puntaje += PUNTOS_POR_TIPO["jefe"]
+            self.finalizar_partida(True)
+            return
 
-        # 4. Colisiones de proyectiles enemigos con el jugador
         proyectiles_enemigos_restantes = []
         for proyectil in self.proyectiles_enemigos:
-            rect_proyectil = pygame.Rect(proyectil.posicion_x - proyectil.radio, proyectil.posicion_y - proyectil.radio, proyectil.radio*2, proyectil.radio*2)
-            if rect_jugador.colliderect(rect_proyectil):
-                self.jugador.vidas -= 1
+            if proyectil_toca(proyectil, self.jugador):
+                self.jugador.recibir_danio(proyectil.danio)
             else:
                 proyectiles_enemigos_restantes.append(proyectil)
         self.proyectiles_enemigos = proyectiles_enemigos_restantes
 
-        # 5. Colisiones de enemigos (cuerpo a cuerpo) con el jugador y eliminación de enemigos muertos
-        enemigos_restantes = []
-        enemigos_muertos_ahora = 0
-        for enemigo in self.enemigos:
-            if enemigo.vida <= 0:
-                enemigos_muertos_ahora += 1
-                continue
-                
-            rect_enemigo = pygame.Rect(
-                enemigo.posicion_x,
-                enemigo.posicion_y,
-                enemigo.ancho,
-                enemigo.alto,
-            )
-            if rect_jugador.colliderect(rect_enemigo):
-                self.jugador.vidas -= 1
-            else:
-                enemigos_restantes.append(enemigo)
+        for enemigo in self.todos_los_enemigos():
+            if entidades_se_tocan(self.jugador, enemigo):
+                self.jugador.recibir_danio(DANIO_A_JUGADOR[enemigo.tipo])
 
-        self.puntaje += enemigos_muertos_ahora
-        self.enemigos = enemigos_restantes
-
-        # 6. Comprobar si el jugador ha muerto
-        if self.jugador.vidas <= 0:
+        if self.jugador.vida <= 0:
             self.finalizar_partida(False)
 
     def iniciar_partida(self) -> None:
@@ -256,17 +243,22 @@ class Juego:
         self.jefe = None
         self.puntaje = 0
         self.gestor_oleadas = GestorOleadas()
-        self.enemigos = [Enemigo(200, 50, 1), Enemigo(480, 50, 2), Enemigo(760, 50, 3)]
+        self.enemigos = self.gestor_oleadas.generar_enemigos()
         self.estado = self.JUGANDO
 
     def finalizar_partida(self, victoria: bool) -> None:
         self.estado = self.VICTORIA if victoria else self.DERROTA
 
     def dibujar(self) -> None:
-        self.pantalla.fill(COLOR_FONDO)
+        self.interfaz.dibujar_fondo(self.tiempo_delta)
         if self.estado == self.MENU:
             self.interfaz.dibujar_menu()
         elif self.estado == self.JUGANDO:
+            texto_oleada = (
+                "Jefe final"
+                if self.jefe is not None
+                else f"Oleada {self.gestor_oleadas.oleada_actual}"
+            )
             self.interfaz.dibujar_partida(
                 self.jugador,
                 self.proyectiles + self.proyectiles_enemigos,
@@ -274,8 +266,8 @@ class Juego:
                 self.jefe,
                 self.tiempo_transcurrido,
                 self.puntaje,
-                self.gestor_oleadas.oleada_actual,
+                texto_oleada,
             )
         else:
-            self.interfaz.dibujar_resultado(self.estado == self.VICTORIA)
+            self.interfaz.dibujar_resultado(self.estado == self.VICTORIA, self.puntaje)
         pygame.display.flip()

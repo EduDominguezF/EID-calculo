@@ -59,10 +59,10 @@ python main.py
 
 | Tecla | Acción |
 |---|---|
-| Flechas o WASD | Mover la nave |
-| Z | Disparo en línea recta |
-| X | Disparo parabólico |
-| C | Disparo con sección cónica |
+| Flechas | Mover la nave |
+| Z (mantener) | Disparo en línea recta, sin límite |
+| X | Disparo parabólico (cooldown 0.8 s) |
+| C | Disparo elíptico (cooldown 2.5 s) |
 | ESC | Salir |
 
 ## Estructura del proyecto

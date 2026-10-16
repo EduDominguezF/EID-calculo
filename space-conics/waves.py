@@ -1,22 +1,39 @@
 import random
 
-from settings import *
 from enemies import Enemigo
+from settings import ANCHO_VENTANA
+
+COMPOSICION_OLEADAS = {
+    1: [1, 1, 1, 1],
+    2: [1, 1, 1, 2, 2, 2],
+    3: [1, 1, 2, 2, 3, 3, 3],
+}
+
+ESCOLTA_JEFE = [1, 2]
+
+
+def generar_grupo(tipos: list[int]) -> list[Enemigo]:
+    enemigos = []
+    ancho_franja = ANCHO_VENTANA / len(tipos)
+    orden = tipos[:]
+    random.shuffle(orden)
+    for indice, tipo in enumerate(orden):
+        posicion_x = random.uniform(
+            indice * ancho_franja,
+            (indice + 1) * ancho_franja - 80,
+        )
+        direccion = random.choice((-1, 1))
+        enemigos.append(Enemigo(posicion_x, tipo, direccion))
+    return enemigos
 
 
 class Oleada:
-    def __init__(self, numero: int, cantidad_enemigos: int) -> None:
+    def __init__(self, numero: int) -> None:
         self.numero = numero
-        self.cantidad_enemigos = cantidad_enemigos
+        self.tipos = COMPOSICION_OLEADAS[numero]
 
-    def generar_apariciones(self) -> list[dict[str, int]]:
-        return [
-            {
-                "posicion_x": random.randint(120, ANCHO_VENTANA - 150),
-                "posicion_y": -30,
-            }
-            for _ in range(self.cantidad_enemigos)
-        ]
+    def generar_enemigos(self) -> list[Enemigo]:
+        return generar_grupo(self.tipos)
 
 
 class GestorOleadas:
@@ -27,15 +44,13 @@ class GestorOleadas:
         self.oleada_actual += 1
 
     def hay_mas_oleadas(self) -> bool:
-        return self.oleada_actual < 3
+        return self.oleada_actual < len(COMPOSICION_OLEADAS)
 
     def generar_enemigos(self) -> list[Enemigo]:
-        enemigos = []
-        for aparicion in self.obtener_oleada_actual().generar_apariciones():
-            enemigos.append(
-                Enemigo(aparicion["posicion_x"], aparicion["posicion_y"], self.oleada_actual)
-            )
-        return enemigos
+        return self.obtener_oleada_actual().generar_enemigos()
+
+    def generar_escolta_jefe(self) -> list[Enemigo]:
+        return generar_grupo(ESCOLTA_JEFE)
 
     def obtener_oleada_actual(self) -> Oleada:
-        return Oleada(self.oleada_actual, self.oleada_actual * 3)
+        return Oleada(self.oleada_actual)

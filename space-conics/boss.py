@@ -1,50 +1,48 @@
-
 import math
-import pygame
+
+from conics import Recta
+from enemies import Enemigo
 from projectiles import Proyectil
+from settings import (
+    COLOR_PROYECTIL_JEFE,
+    DANIO_A_JUGADOR,
+    VELOCIDAD_PROYECTIL_JEFE,
+)
+
+PARAMETROS_JEFE = {
+    "A": 35,
+    "B": 0.010,
+    "C": math.pi / 4,
+    "D": 60,
+    "velocidad": 110,
+    "vida": 40,
+    "imagen": "boss/big.png",
+}
 
 
-def Load_Image(sFile,transp = False):
-    try: image = pygame.image.load(sFile)
-    except pygame.error as message:
-        raise SystemExit(message)
-    image = image.convert()
-    if transp:
-       color = image.get_at((0,0))
-       image.set_colorkey(color,pygame.RLEACCEL)
-    return image
-
-class Jefe:
-    def __init__(
-        self,
-        posicion_x: int,
-        posicion_y: int,
-        vida: int = 20,
-    ) -> None:
-        self.posicion_x = posicion_x
-        self.posicion_y = posicion_y
-        self.x_inicial = posicion_x
-        self.vida = vida
-        self.imagen = Load_Image("boss/big.png", True)
-        self.ancho = self.imagen.get_width() 
-        self.alto = self.imagen.get_height()
-        self.tiempo = 0
-        self.tiempo_disparo = 0
-        self.tiempo_ataque = 0
+class Jefe(Enemigo):
+    def __init__(self, posicion_x: float) -> None:
+        super().__init__(posicion_x, "jefe", 1, PARAMETROS_JEFE)
+        self.tiempo_ataque = 0.0
+        self.intervalo_ataque = 1.3
 
     def actualizar(self, tiempo_delta: float) -> Proyectil | None:
-        self.tiempo += tiempo_delta * 60
-        self.posicion_x = self.x_inicial + 250 * math.sin(0.03 * self.tiempo)
-        self.tiempo_ataque += tiempo_delta * 60
-        if self.tiempo_ataque >= 80:  # Dispara aprox cada 80 "ticks"
-            self.tiempo_ataque = 0
-            # Retornamos un proyectil rojo.
-            # Nota: La velocidad es negativa para que vaya hacia abajo, ya que
-            # en projectiles.py la 'velocidad' se resta a 'posicion_y'.
-            return Proyectil(
-                posicion_x=int(self.posicion_x + self.ancho / 2),
-                posicion_y=self.posicion_y + self.alto,
-                velocidad=-6,
-                color=(255, 50, 50)
-            )
-        return None
+        super().actualizar(tiempo_delta)
+        if self.entrando:
+            return None
+        self.tiempo_ataque += tiempo_delta
+        if self.tiempo_ataque < self.intervalo_ataque:
+            return None
+        self.tiempo_ataque = 0.0
+        return Proyectil(
+            Recta(
+                self.posicion_x + self.ancho / 2,
+                self.posicion_y + self.alto,
+                0,
+                VELOCIDAD_PROYECTIL_JEFE,
+            ),
+            "jefe",
+            DANIO_A_JUGADOR["jefe"],
+            7,
+            COLOR_PROYECTIL_JEFE,
+        )
