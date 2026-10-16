@@ -340,6 +340,10 @@ class Juego:
         for enemigo in self.enemigos:
             if enemigo.vida <= 0:
                 self.puntaje += PUNTOS_POR_TIPO[enemigo.tipo]
+                self.interfaz.crear_explosion(
+                    enemigo.posicion_x + enemigo.ancho / 2,
+                    enemigo.posicion_y + enemigo.alto / 2,
+                )
             else:
                 enemigos_vivos.append(enemigo)
         self.enemigos = enemigos_vivos

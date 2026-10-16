@@ -4,7 +4,7 @@ import random
 import pygame
 
 from boss import Jefe
-from enemies import Enemigo
+from enemies import Enemigo, cargar_imagen
 from player import Jugador
 from projectiles import Proyectil
 from settings import (
@@ -13,6 +13,7 @@ from settings import (
     COLOR_FONDO,
     COLOR_JUGADOR,
     COLOR_PARABOLICA,
+    DURACION_EXPLOSION,
     FUENTE,
 )
 
@@ -26,6 +27,15 @@ class Interfaz:
         self.estrellas = self.crear_estrellas()
         self.tiempo_fondo = 0.0
         self.fondo_fijo = self.crear_fondo_fijo()
+        self.cuadros_explosion = [
+            pygame.transform.scale(
+                cargar_imagen(f"Explosion/explosion{numero:02d}.png", True), (80, 80)
+            )
+            for numero in range(9)
+        ]
+        self.explosiones = []
+        self.sonido_explosion = pygame.mixer.Sound("sound/sound_002.wav")
+        self.sonido_explosion.set_volume(0.3)
 
     def crear_fondo_fijo(self) -> pygame.Surface:
         ancho = self.pantalla.get_width()
@@ -71,6 +81,23 @@ class Interfaz:
                     }
                 )
         return estrellas
+
+    def crear_explosion(self, x: float, y: float) -> None:
+        self.explosiones.append({"x": x, "y": y, "inicio": self.tiempo_fondo})
+        self.sonido_explosion.play()
+
+    def dibujar_explosiones(self) -> None:
+        total = len(self.cuadros_explosion)
+        activas = []
+        for explosion in self.explosiones:
+            transcurrido = self.tiempo_fondo - explosion["inicio"]
+            indice = int(transcurrido / DURACION_EXPLOSION * total)
+            if indice < total:
+                imagen = self.cuadros_explosion[indice]
+                rect = imagen.get_rect(center=(explosion["x"], explosion["y"]))
+                self.pantalla.blit(imagen, rect)
+                activas.append(explosion)
+        self.explosiones = activas
 
     def dibujar_fondo(self, tiempo_delta: float) -> None:
         ancho = self.pantalla.get_width()
@@ -195,6 +222,7 @@ class Interfaz:
                 (proyectil.posicion_x, proyectil.posicion_y),
                 proyectil.radio,
             )
+        self.dibujar_explosiones()
         self.dibujar_jugador(jugador)
         self.dibujar_hud(jugador, puntaje, oleada, tiempo_transcurrido, jefe)
 
