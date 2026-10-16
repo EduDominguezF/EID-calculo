@@ -47,6 +47,142 @@ def proyectil_toca(proyectil: Proyectil, entidad: Enemigo | Jugador) -> bool:
     )
 
 
+def distancia_punto_segmento_cuadrada(
+    px: float,
+    py: float,
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+) -> float:
+    vector_x = x2 - x1
+    vector_y = y2 - y1
+    longitud_cuadrada = vector_x * vector_x + vector_y * vector_y
+    if longitud_cuadrada == 0:
+        return (px - x1) ** 2 + (py - y1) ** 2
+    proporcion = max(
+        0.0,
+        min(1.0, ((px - x1) * vector_x + (py - y1) * vector_y) / longitud_cuadrada),
+    )
+    punto_x = x1 + proporcion * vector_x
+    punto_y = y1 + proporcion * vector_y
+    return (px - punto_x) ** 2 + (py - punto_y) ** 2
+
+
+def segmentos_se_intersectan(
+    ax: float,
+    ay: float,
+    bx: float,
+    by: float,
+    cx: float,
+    cy: float,
+    dx: float,
+    dy: float,
+) -> bool:
+    def orientacion(
+        x1: float, y1: float, x2: float, y2: float, x3: float, y3: float
+    ) -> float:
+        return (x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1)
+
+    def en_segmento(
+        x1: float, y1: float, x2: float, y2: float, x: float, y: float
+    ) -> bool:
+        return (
+            min(x1, x2) <= x <= max(x1, x2)
+            and min(y1, y2) <= y <= max(y1, y2)
+        )
+
+    o1 = orientacion(ax, ay, bx, by, cx, cy)
+    o2 = orientacion(ax, ay, bx, by, dx, dy)
+    o3 = orientacion(cx, cy, dx, dy, ax, ay)
+    o4 = orientacion(cx, cy, dx, dy, bx, by)
+    if o1 * o2 < 0 and o3 * o4 < 0:
+        return True
+    return (
+        (o1 == 0 and en_segmento(ax, ay, bx, by, cx, cy))
+        or (o2 == 0 and en_segmento(ax, ay, bx, by, dx, dy))
+        or (o3 == 0 and en_segmento(cx, cy, dx, dy, ax, ay))
+        or (o4 == 0 and en_segmento(cx, cy, dx, dy, bx, by))
+    )
+
+
+def segmento_toca_rectangulo(
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+    radio: float,
+    entidad: Enemigo | Jugador,
+) -> bool:
+    izquierda = entidad.posicion_x
+    arriba = entidad.posicion_y
+    derecha = izquierda + entidad.ancho
+    abajo = arriba + entidad.alto
+
+    def distancia_punto_rectangulo_cuadrada(x: float, y: float) -> float:
+        dx = max(izquierda - x, 0.0, x - derecha)
+        dy = max(arriba - y, 0.0, y - abajo)
+        return dx * dx + dy * dy
+
+    if (
+        distancia_punto_rectangulo_cuadrada(x1, y1) == 0
+        or distancia_punto_rectangulo_cuadrada(x2, y2) == 0
+    ):
+        return True
+
+    bordes = (
+        (izquierda, arriba, derecha, arriba),
+        (derecha, arriba, derecha, abajo),
+        (derecha, abajo, izquierda, abajo),
+        (izquierda, abajo, izquierda, arriba),
+    )
+    distancia_minima = min(
+        distancia_punto_rectangulo_cuadrada(x1, y1),
+        distancia_punto_rectangulo_cuadrada(x2, y2),
+    )
+    for ex1, ey1, ex2, ey2 in bordes:
+        if segmentos_se_intersectan(x1, y1, x2, y2, ex1, ey1, ex2, ey2):
+            return True
+        distancia_minima = min(
+            distancia_minima,
+            distancia_punto_segmento_cuadrada(x1, y1, ex1, ey1, ex2, ey2),
+            distancia_punto_segmento_cuadrada(x2, y2, ex1, ey1, ex2, ey2),
+            distancia_punto_segmento_cuadrada(ex1, ey1, x1, y1, x2, y2),
+            distancia_punto_segmento_cuadrada(ex2, ey2, x1, y1, x2, y2),
+        )
+    return distancia_minima <= radio * radio
+
+
+def proyectil_recorrido_toca(
+    proyectil: Proyectil,
+    entidad: Enemigo | Jugador,
+    puntos: list[tuple[float, float]] | None = None,
+) -> bool:
+    if puntos is None:
+        puntos = proyectil.puntos_recorridos(ANCHO_VENTANA)
+    if len(puntos) == 1:
+        return colision_circulo_rectangulo(
+            puntos[0][0],
+            puntos[0][1],
+            proyectil.radio,
+            entidad.posicion_x,
+            entidad.posicion_y,
+            entidad.ancho,
+            entidad.alto,
+        )
+    return any(
+        segmento_toca_rectangulo(
+            punto_inicio[0],
+            punto_inicio[1],
+            punto_fin[0],
+            punto_fin[1],
+            proyectil.radio,
+            entidad,
+        )
+        for punto_inicio, punto_fin in zip(puntos, puntos[1:])
+    )
+
+
 def entidades_se_tocan(a: Enemigo | Jugador, b: Enemigo | Jugador) -> bool:
     return colision_rectangulos(
         a.posicion_x, a.posicion_y, a.ancho, a.alto,
@@ -154,16 +290,6 @@ class Juego:
     def _actualizar_proyectiles(self) -> None:
         for proyectil in self.proyectiles + self.proyectiles_enemigos:
             proyectil.actualizar(self.tiempo_delta)
-        self.proyectiles = [
-            proyectil
-            for proyectil in self.proyectiles
-            if not proyectil.terminado(ANCHO_VENTANA, ALTO_VENTANA)
-        ]
-        self.proyectiles_enemigos = [
-            proyectil
-            for proyectil in self.proyectiles_enemigos
-            if not proyectil.terminado(ANCHO_VENTANA, ALTO_VENTANA)
-        ]
 
     def _actualizar_enemigos(self) -> None:
         for enemigo in self.enemigos:
@@ -198,8 +324,11 @@ class Juego:
         proyectiles_restantes: list[Proyectil] = []
         for proyectil in self.proyectiles:
             impacto = False
+            puntos = proyectil.puntos_recorridos(ANCHO_VENTANA)
             for enemigo in self.todos_los_enemigos():
-                if proyectil_toca(proyectil, enemigo):
+                if enemigo.vida > 0 and proyectil_recorrido_toca(
+                    proyectil, enemigo, puntos
+                ):
                     enemigo.vida -= proyectil.danio
                     impacto = True
                     break
@@ -215,25 +344,38 @@ class Juego:
                 enemigos_vivos.append(enemigo)
         self.enemigos = enemigos_vivos
 
-        if self.jefe is not None and self.jefe.vida <= 0:
+        jefe_derrotado = self.jefe is not None and self.jefe.vida <= 0
+        if jefe_derrotado:
             self.puntaje += PUNTOS_POR_TIPO["jefe"]
-            self.finalizar_partida(True)
-            return
 
         proyectiles_enemigos_restantes = []
         for proyectil in self.proyectiles_enemigos:
-            if proyectil_toca(proyectil, self.jugador):
+            puntos = proyectil.puntos_recorridos(ANCHO_VENTANA)
+            if proyectil_recorrido_toca(proyectil, self.jugador, puntos):
                 self.jugador.recibir_danio(proyectil.danio)
             else:
                 proyectiles_enemigos_restantes.append(proyectil)
         self.proyectiles_enemigos = proyectiles_enemigos_restantes
 
         for enemigo in self.todos_los_enemigos():
-            if entidades_se_tocan(self.jugador, enemigo):
+            if enemigo.vida > 0 and entidades_se_tocan(self.jugador, enemigo):
                 self.jugador.recibir_danio(DANIO_A_JUGADOR[enemigo.tipo])
+
+        self.proyectiles = [
+            proyectil
+            for proyectil in self.proyectiles
+            if not proyectil.terminado(ANCHO_VENTANA, ALTO_VENTANA)
+        ]
+        self.proyectiles_enemigos = [
+            proyectil
+            for proyectil in self.proyectiles_enemigos
+            if not proyectil.terminado(ANCHO_VENTANA, ALTO_VENTANA)
+        ]
 
         if self.jugador.vida <= 0:
             self.finalizar_partida(False)
+        elif jefe_derrotado:
+            self.finalizar_partida(True)
 
     def iniciar_partida(self) -> None:
         self.tiempo_transcurrido = 0.0
