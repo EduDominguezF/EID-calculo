@@ -1,4 +1,6 @@
 import math
+import os
+
 import pygame
 
 from conics import Elipse, Parabola, Recta
@@ -19,7 +21,12 @@ class Proyectil:
         self.radio = radio
         self.color = color
         self.tiempo = 0.0
-        self.sonido = pygame.mixer.Sound("sound/sound_001.wav")
+        ruta_sonido = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "sound",
+            "sound_001.wav",
+        )
+        self.sonido = pygame.mixer.Sound(ruta_sonido)
         self.sonido.set_volume(0.1)
         self.sonido.play()
         self.posicion_x, self.posicion_y = trayectoria.posicion(0)

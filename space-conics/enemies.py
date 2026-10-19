@@ -1,13 +1,15 @@
 import math
+import os
 
 import pygame
 
-from settings import ANCHO_VENTANA, VELOCIDAD_ENTRADA_ENEMIGO
+from settings import ANCHO_VENTANA
 
 
 def cargar_imagen(archivo: str, transparente: bool = False) -> pygame.Surface:
     try:
-        imagen = pygame.image.load(archivo)
+        ruta = os.path.join(os.path.dirname(os.path.abspath(__file__)), archivo)
+        imagen = pygame.image.load(ruta)
     except pygame.error as mensaje:
         raise SystemExit(mensaje)
     imagen = imagen.convert()
@@ -69,19 +71,41 @@ class Enemigo:
         self.ancho = self.imagen.get_width()
         self.alto = self.imagen.get_height()
         self.direccion = direccion
-        self.posicion_x = max(0, min(posicion_x, ANCHO_VENTANA - self.ancho))
-        self.posicion_y = -self.alto
-        self.entrando = True
+        self.posicion_x_objetivo_entrada = max(
+            0,
+            min(posicion_x, ANCHO_VENTANA - self.ancho),
+        )
+        self.posicion_x = (
+            0 if direccion > 0 else ANCHO_VENTANA - self.ancho
+        )
+        self.posicion_y = self.f(self.posicion_x)
+        self.entrando = self.posicion_x != self.posicion_x_objetivo_entrada
 
     def f(self, x: float) -> float:
         return self.A * math.sin(self.B * x + self.C) + self.D
 
     def actualizar(self, tiempo_delta: float) -> None:
         if self.entrando:
-            self.posicion_y += VELOCIDAD_ENTRADA_ENEMIGO * tiempo_delta
-            if self.posicion_y >= self.f(self.posicion_x):
-                self.posicion_y = self.f(self.posicion_x)
-                self.entrando = False
+            posicion_siguiente = (
+                self.posicion_x + self.direccion * self.velocidad * tiempo_delta
+            )
+            if self.direccion > 0:
+                self.posicion_x = min(
+                    posicion_siguiente,
+                    self.posicion_x_objetivo_entrada,
+                )
+                self.entrando = (
+                    self.posicion_x < self.posicion_x_objetivo_entrada
+                )
+            else:
+                self.posicion_x = max(
+                    posicion_siguiente,
+                    self.posicion_x_objetivo_entrada,
+                )
+                self.entrando = (
+                    self.posicion_x > self.posicion_x_objetivo_entrada
+                )
+            self.posicion_y = self.f(self.posicion_x)
             return
 
         self.posicion_x += self.direccion * self.velocidad * tiempo_delta

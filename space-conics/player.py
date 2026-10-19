@@ -2,7 +2,6 @@ from conics import Elipse, Parabola, Recta
 from projectiles import Proyectil
 from settings import (
     ALTURA_PARABOLA,
-    CADENCIA_BASICA,
     COLOR_BASICA,
     COLOR_CONICA,
     COLOR_PARABOLICA,
@@ -31,7 +30,6 @@ class Jugador:
         self.vida_maxima = VIDA_JUGADOR
         self.vida = VIDA_JUGADOR
         self.direccion = 1
-        self.espera_basica = 0.0
         self.espera_parabolica = 0.0
         self.espera_conica = 0.0
         self.invulnerable = 0.0
@@ -43,7 +41,6 @@ class Jugador:
             self.direccion = direccion_x
 
     def actualizar_tiempos(self, tiempo_delta: float) -> None:
-        self.espera_basica = max(0.0, self.espera_basica - tiempo_delta)
         self.espera_parabolica = max(0.0, self.espera_parabolica - tiempo_delta)
         self.espera_conica = max(0.0, self.espera_conica - tiempo_delta)
         self.invulnerable = max(0.0, self.invulnerable - tiempo_delta)
@@ -58,9 +55,6 @@ class Jugador:
         return self.posicion_x + self.ancho / 2, self.posicion_y
 
     def disparar_basica(self) -> Proyectil | None:
-        if self.espera_basica > 0:
-            return None
-        self.espera_basica = CADENCIA_BASICA
         x, y = self.punta()
         return Proyectil(
             Recta(x, y, 0, -VELOCIDAD_PROYECTIL_BASICO),

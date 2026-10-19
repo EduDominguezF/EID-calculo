@@ -1,4 +1,5 @@
 import math
+import os
 import random
 
 import pygame
@@ -34,7 +35,12 @@ class Interfaz:
             for numero in range(9)
         ]
         self.explosiones = []
-        self.sonido_explosion = pygame.mixer.Sound("sound/sound_002.wav")
+        ruta_sonido = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "sound",
+            "sound_002.wav",
+        )
+        self.sonido_explosion = pygame.mixer.Sound(ruta_sonido)
         self.sonido_explosion.set_volume(0.3)
 
     def crear_fondo_fijo(self) -> pygame.Surface:
