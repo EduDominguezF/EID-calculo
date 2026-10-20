@@ -14,6 +14,7 @@ from settings import (
     COLOR_FONDO,
     COLOR_JUGADOR,
     COLOR_PARABOLICA,
+    DURACION_AVISO,
     DURACION_EXPLOSION,
     FUENTE,
 )
@@ -42,6 +43,13 @@ class Interfaz:
         )
         self.sonido_explosion = pygame.mixer.Sound(ruta_sonido)
         self.sonido_explosion.set_volume(0.3)
+        self.texto_aviso = ""
+        self.inicio_aviso = None
+
+    def aviso_activo(self) -> bool:
+        if self.inicio_aviso is None:
+            return False
+        return self.tiempo_fondo - self.inicio_aviso < DURACION_AVISO
 
     def crear_fondo_fijo(self) -> pygame.Surface:
         ancho = self.pantalla.get_width()
@@ -91,6 +99,15 @@ class Interfaz:
     def crear_explosion(self, x: float, y: float) -> None:
         self.explosiones.append({"x": x, "y": y, "inicio": self.tiempo_fondo})
         self.sonido_explosion.play()
+
+    def dibujar_aviso(self) -> None:
+        if self.aviso_activo():
+            self.dibujar_texto_centrado(
+                self.texto_aviso,
+                self.fuente_titulo,
+                (255, 255, 255),
+                self.pantalla.get_height() // 2,
+            )
 
     def dibujar_explosiones(self) -> None:
         total = len(self.cuadros_explosion)
@@ -231,6 +248,7 @@ class Interfaz:
         self.dibujar_explosiones()
         self.dibujar_jugador(jugador)
         self.dibujar_hud(jugador, puntaje, oleada, tiempo_transcurrido, jefe)
+        self.dibujar_aviso()
 
     def dibujar_hud(
         self,
@@ -296,3 +314,7 @@ class Interfaz:
             (180, 180, 180),
             335,
         )
+
+    def mostrar_aviso(self, texto: str) -> None:
+        self.texto_aviso = texto
+        self.inicio_aviso = self.tiempo_fondo

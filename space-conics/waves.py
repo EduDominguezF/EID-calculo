@@ -23,7 +23,17 @@ def generar_grupo(tipos: list[int]) -> list[Enemigo]:
             (indice + 1) * ancho_franja - 80,
         )
         direccion = random.choice((-1, 1))
-        enemigos.append(Enemigo(posicion_x, tipo, direccion))
+
+        enemigo = Enemigo(posicion_x, tipo, direccion)
+
+        separacion = 80
+        if direccion > 0:
+            enemigo.posicion_x -= indice * separacion
+        else: 
+            enemigo.posicion_x += indice * separacion
+
+        enemigo.posicion_y = enemigo.f(enemigo.posicion_x)
+        enemigos.append(enemigo)
     return enemigos
 
 

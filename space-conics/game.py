@@ -213,6 +213,7 @@ class Juego:
         self.jefe: Jefe | None = None
         self.puntaje = 0
         self.gestor_oleadas = GestorOleadas()
+        self.aparicion_pendiente = None
 
     def ejecutar(self) -> None:
         try:
@@ -255,13 +256,35 @@ class Juego:
         self.gestionar_colisiones()
         if self.estado != self.JUGANDO:
             return
-        if not self.enemigos and self.jefe is None:
+        if self.interfaz.aviso_activo():
+            return
+        if self.aparicion_pendiente == "oleada":
+            self.enemigos = self.gestor_oleadas.generar_enemigos()
+            self.aparicion_pendiente = None
+        elif self.aparicion_pendiente == "jefe":
+            self.jefe = Jefe(ANCHO_VENTANA / 2 - 97)
+            self.enemigos = self.gestor_oleadas.generar_escolta_jefe()
+            self.aparicion_pendiente = None
+        elif not self.enemigos and self.jefe is None:
             if self.gestor_oleadas.hay_mas_oleadas():
                 self.gestor_oleadas.avanzar_oleada()
-                self.enemigos = self.gestor_oleadas.generar_enemigos()
+                self.interfaz.mostrar_aviso(f"OLEADA {self.gestor_oleadas.oleada_actual}")
+                self.aparicion_pendiente = "oleada"
             else:
-                self.jefe = Jefe(ANCHO_VENTANA / 2 - 97)
-                self.enemigos = self.gestor_oleadas.generar_escolta_jefe()
+                self.interfaz.mostrar_aviso("JEFE FINAL")
+                self.aparicion_pendiente = "jefe"
+
+        elif not self.enemigos and self.jefe is None:
+                if self.gestor_oleadas.hay_mas_oleadas():
+                    self.gestor_oleadas.avanzar_oleada()
+                    self.interfaz.mostrar_aviso(f"OLEADA {self.gestor_oleadas.oleada_actual}")
+                    self.aparicion_pendiente = "oleada"
+                else:
+                    self.interfaz.mostrar_aviso("JEFE FINAL")
+                    self.aparicion_pendiente = "jefe"
+
+                        
+           
 
     def _actualizar_jugador(self) -> None:
         teclas = pygame.key.get_pressed()
@@ -389,7 +412,9 @@ class Juego:
         self.jefe = None
         self.puntaje = 0
         self.gestor_oleadas = GestorOleadas()
-        self.enemigos = self.gestor_oleadas.generar_enemigos()
+        self.enemigos = []
+        self.aparicion_pendiente = "oleada"
+        self.interfaz.mostrar_aviso(f"OLEADA {self.gestor_oleadas.oleada_actual}")
         self.estado = self.JUGANDO
 
     def finalizar_partida(self, victoria: bool) -> None:
@@ -402,7 +427,7 @@ class Juego:
         elif self.estado == self.JUGANDO:
             texto_oleada = (
                 "Jefe final"
-                if self.jefe is not None
+                if self.jefe is not None or self.aparicion_pendiente == "jefe"
                 else f"Oleada {self.gestor_oleadas.oleada_actual}"
             )
             self.interfaz.dibujar_partida(
